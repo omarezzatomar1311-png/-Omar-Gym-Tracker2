@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#111111">
+<title>Workout Tracker</title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#0d0d0d;color:#f5f5f5}
+button,input,select{font:inherit}
+.app{min-height:100vh;background:#111;padding:20px;--card:#1b1b1b;--border:#333;--muted:#aaa;--accent:#8df0b5;max-width:1100px;margin:auto}
+h1{margin:0 0 5px;font-size:28px}.sub{color:var(--muted);margin-bottom:20px}
+.tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.tabs button,.save,.action{border:1px solid var(--border);background:var(--card);color:inherit;border-radius:12px;padding:11px 18px;font-weight:700;cursor:pointer}
+.tabs .active,.save{background:var(--accent);color:#101010;border-color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:16px;margin-bottom:14px}
+.exercise-head,.exercise-row{display:grid;grid-template-columns:minmax(180px,1fr) 70px 75px 85px 55px 75px;gap:9px;align-items:center}
+.exercise-head{color:var(--muted);font-size:12px;margin-bottom:7px}
+.exercise-row{margin-bottom:10px}
+.exercise{font-weight:700;min-width:0}.tag{display:block;font-size:12px;color:var(--muted);margin-top:4px}
+input,select{width:100%;background:#111;border:1px solid var(--border);color:inherit;border-radius:9px;padding:9px;text-align:center}
+select{text-align:right}.check{width:20px;height:20px;justify-self:center}
+.small-btn{border:1px solid var(--border);background:#111;color:#ddd;border-radius:9px;padding:7px;cursor:pointer;font-size:12px}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:#111;border-radius:12px;padding:12px}.stat b{display:block;font-size:20px;margin-top:4px}.muted{color:var(--muted);font-size:12px}
+.history{white-space:pre-line;color:#ddd;line-height:1.8}
+.actions{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.reset{background:transparent;color:#aaa;border:0;cursor:pointer}
+.tool-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:9px;align-items:center}
+.timer{text-align:center;font-size:36px;margin-bottom:10px}
+.timer-buttons{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.notice{color:var(--muted);font-size:12px;margin-top:8px}
+@media(max-width:760px){
+ .app{padding:14px}
+ .exercise-head{display:none}
+ .exercise-row{grid-template-columns:1fr 70px 70px;gap:8px;padding:10px 0;border-bottom:1px solid #292929}
+ .exercise-row .weight{grid-column:2}.exercise-row .reps{grid-column:3}
+ .exercise-row .actualSets{grid-column:2}.exercise-row .check{grid-column:3}
+ .exercise-row .actions-cell{grid-column:1/4;display:flex;gap:8px}
+ .summary{grid-template-columns:1fr 1fr 1fr}
+ .tool-grid{grid-template-columns:1fr}
+}
+@media(max-width:420px){.summary{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<main class="app">
+<h1>🏋️ Workout Tracker</h1>
+<div class="sub">Full Body — 3 أيام في الأسبوع</div>
+
+<div class="tabs">
+<button id="workoutA" class="active" type="button">Workout A</button>
+<button id="workoutB" type="button">Workout B</button>
+</div>
+
+<section class="card">
+<div class="exercise-head">
+<div>التمرين</div><div>Sets</div><div>Reps</div><div>الوزن kg</div><div>تم</div><div>إجراء</div>
+</div>
+<div id="list"></div>
+</section>
+
+<section class="card">
+<div class="summary">
+<div class="stat"><span class="muted">إجمالي الـ Sets</span><b id="sets">0</b></div>
+<div class="stat"><span class="muted">Volume</span><b id="vol">0</b></div>
+<div class="stat"><span class="muted">تمارين مكتملة</span><b id="done">0/0</b></div>
+</div>
+</section>
+
+<section class="card">
+<div class="actions">
+<button class="save" id="save" type="button">حفظ التمرين</button>
+<button class="reset" id="reset" type="button">مسح بيانات اليوم</button>
+</div>
+<div id="history" class="history" style="margin-top:12px"></div>
+</section>
+
+<section class="card">
+<h2 style="margin-top:0">📈 التطور بالأرقام</h2>
+<div class="summary">
+<div class="stat"><span class="muted">عدد التمرينات</span><b id="workoutsCount">0</b></div>
+<div class="stat"><span class="muted">إجمالي الـ Volume</span><b id="totalVolume">0</b></div>
+<div class="stat"><span class="muted">أعلى Volume</span><b id="bestVolume">0</b></div>
+<div class="stat"><span class="muted">أعلى وزن</span><b id="maxWeight">0 kg</b></div>
+<div class="stat"><span class="muted">متوسط Volume</span><b id="avgVolume">0</b></div>
+<div class="stat"><span class="muted">آخر Volume</span><b id="lastVolume">0</b></div>
+</div>
+<div id="progress" class="history" style="margin-top:14px"></div>
+</section>
+
+<section class="card">
+<h2 style="margin-top:0">⏱️ مؤقت الراحة</h2>
+<div id="timer" class="timer">01:30</div>
+<div class="timer-buttons">
+<button class="save" type="button" data-seconds="30">30ث</button>
+<button class="save" type="button" data-seconds="60">60ث</button>
+<button class="save" type="button" data-seconds="90">90ث</button>
+<button class="save" type="button" data-seconds="120">120ث</button>
+<button class="action" id="stopTimer" type="button">إيقاف</button>
+</div>
+</section>
+
+<section class="card">
+<h2 style="margin-top:0">🛠️ مكتبة التمارين</h2>
+<div class="tool-grid">
+<select id="muscle"><option value="">اختر العضلة</option></select>
+<select id="exercise"><option value="">اختر التمرين</option></select>
+<button class="save" id="addExercise" type="button">إضافة</button>
+</div>
+<div class="notice">التمرين المضاف أو الاسم المعدل يتم حفظه على هذا الجهاز.</div>
+</section>
+
+<section class="card">
+<h2 style="margin-top:0">🏃 كارديو</h2>
+<div class="tool-grid">
+<select id="cardioName">
+<option>Walking</option><option>Treadmill</option><option>Running</option>
+<option>Cycling</option><option>Elliptical</option><option>Rowing Machine</option>
+<option>Stair Climber</option><option>Jump Rope</option><option>Swimming</option>
+</select>
+<input id="cardioMinutes" type="number" min="0" placeholder="الدقائق">
+<button class="save" id="startCardio" type="button">ابدأ</button>
+</div>
+</section>
+
+<section class="card">
+<h2 style="margin-top:0">🍽️ حاسبة الأكل</h2>
+<div class="tool-grid">
+<input id="foodName" placeholder="chicken / rice / egg">
+<input id="foodGrams" type="number" min="0" placeholder="الجرام">
+<button class="save" id="calculateFood" type="button">احسب</button>
+</div>
+<div id="foodResult" style="margin-top:12px"></div>
+</section>
+</main>
+
+<script>
+'use strict';
+
+const defaultWorkouts = {
+ A:[['Squat',3,8],['Bench Press',3,8],['Lat Pulldown',3,10],['Romanian Deadlift',3,10]],
+ B:[['Leg Press',3,10],['Overhead Press',3,8],['Seated Row',3,10],['Leg Curl',3,10]]
+};
+
+const exerciseLibrary = {
+ 'رجل أمامي':['Squat','Leg Press','Hack Squat','Leg Extension','Front Squat','Lunges'],
+ 'رجل خلفي':['Romanian Deadlift','Leg Curl','Nordic Curl'],
+ 'سمان':['Standing Calf Raise','Seated Calf Raise'],
+ 'ضامة':['Adductor Machine','Cable Adduction'],
+ 'خلفية':['Hip Thrust','Glute Bridge','Cable Kickback'],
+ 'باي':['Barbell Curl','Hammer Curl','Preacher Curl','Cable Curl'],
+ 'تراي':['Rope Pushdown','Skull Crushers','Dips'],
+ 'فور آرمز':['Wrist Curl','Reverse Wrist Curl','Farmer Walk'],
+ 'كتف أمامي':['Overhead Press','Arnold Press','Front Raise'],
+ 'كتف جانبي':['Lateral Raise','Cable Lateral Raise','Machine Lateral Raise'],
+ 'كتف خلفي':['Reverse Fly','Face Pull','Rear Delt Row'],
+ 'ترابيس':['Barbell Shrug','Dumbbell Shrug','Farmer Walk'],
+ 'رقبة':['Neck Flexion','Neck Extension','Neck Lateral Flexion'],
+ 'صدر علوي':['Incline Bench Press','Incline Dumbbell Press','Low To High Cable Fly'],
+ 'صدر أوسط':['Bench Press','Dumbbell Bench Press','Cable Fly','Pec Deck'],
+ 'صدر سفلي':['Decline Bench Press','Decline Dumbbell Press','High To Low Cable Fly','Dips'],
+ 'ضهر لاتس':['Lat Pulldown','Pull Ups','Chin Ups'],
+ 'ضهر منتصف':['Seated Row','Barbell Row','Dumbbell Row','Chest Supported Row'],
+ 'ضهر علوي':['Face Pull','High Row','Wide Grip Row'],
+ 'أسفل الضهر':['Deadlift','Back Extension','Good Morning'],
+ 'بطن':['Crunch','Cable Crunch','Hanging Leg Raise','Reverse Crunch','Ab Wheel','Plank']
+};
+
+const foods = {
+ chicken:[165,31,0,3.6], rice:[130,2.7,28,.3], egg:[155,13,1.1,11],
+ beef:[250,26,0,15], tuna:[132,29,0,1], oats:[389,17,66,7],
+ milk:[61,3.2,4.8,3.3], banana:[89,1.1,23,.3], bread:[265,9,49,3.2]
+};
+
+let type = 'A';
+let data = readJSON('wt', {});
+let historyData = readJSON('history', []);
+let workouts = readJSON('workoutPlan', defaultWorkouts);
+let timerSeconds = 90;
+let timerInterval = null;
+
+function readJSON(key, fallback){
+ try{
+   const value = localStorage.getItem(key);
+   return value === null ? fallback : JSON.parse(value);
+ }catch(error){
+   console.warn('Could not read localStorage key:', key, error);
+   return fallback;
+ }
+}
+function saveJSON(key, value){ localStorage.setItem(key, JSON.stringify(value)); }
+function esc(value){
+ return String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
+}
+
+function render(){
+ document.getElementById('workoutA').classList.toggle('active', type === 'A');
+ document.getElementById('workoutB').classList.toggle('active', type === 'B');
+
+ const list = document.getElementById('list');
+ list.innerHTML = '';
+
+ workouts[type].forEach((exercise, i) => {
+   const key = type + i;
+   const saved = data[key] || {};
+   const row = document.createElement('div');
+   row.className = 'exercise-row';
+   row.dataset.index = i;
+   row.innerHTML = `
+     <div class="exercise">
+       ${esc(exercise[0])}
+       <span class="tag">${exercise[1]} × ${exercise[2]}</span>
+     </div>
+     <input class="actualSets" type="number" min="0" step="1" value="${Number.isFinite(+saved.sets) ? saved.sets : exercise[1]}" aria-label="Sets">
+     <input class="reps" type="number" min="0" step="1" placeholder="reps" value="${saved.reps ?? exercise[2]}" aria-label="Reps">
+     <input class="weight" type="number" min="0" step="0.5" placeholder="kg" value="${saved.weight ?? ''}" aria-label="الوزن بالكيلو">
+     <input class="check" type="checkbox" ${saved.done ? 'checked' : ''} aria-label="تمرين مكتمل">
+     <div class="actions-cell">
+       <button class="small-btn rename" type="button">تعديل</button>
+     </div>`;
+   list.appendChild(row);
+ });
+
+ list.querySelectorAll('input').forEach(input => input.addEventListener('input', calc));
+ list.querySelectorAll('.check').forEach(input => input.addEventListener('change', calc));
+ list.querySelectorAll('.rename').forEach(button => {
+   button.addEventListener('click', () => renameExercise(+button.closest('.exercise-row').dataset.index));
+ });
+
+ calc();
+ renderHistory();
+ renderProgress();
+}
+
+function collectWorkout(){
+ return workouts[type].map((_, i) => {
+   const row = document.querySelector(`.exercise-row[data-index="${i}"]`);
+   return {
+     weight: row.querySelector('.weight').value,
+     reps: row.querySelector('.reps').value,
+     sets: Math.max(0, +row.querySelector('.actualSets').value || 0),
+     done: row.querySelector('.check').checked
+   };
+ });
+}
+
+function calc(){
+ let sets = 0, volume = 0, done = 0;
+ document.querySelectorAll('.exercise-row').forEach(row => {
+   const setsValue = +row.querySelector('.actualSets').value || 0;
+   const weight = +row.querySelector('.weight').value || 0;
+   const reps = +row.querySelector('.reps').value || 0;
+   sets += setsValue;
+   volume += setsValue * weight * reps;
+   if(row.querySelector('.check').checked) done++;
+ });
+ document.getElementById('sets').textContent = sets;
+ document.getElementById('vol').textContent = Math.round(volume);
+ document.getElementById('done').textContent = `${done}/${workouts[type].length}`;
+}
+
+function saveWorkout(){
+ const entries = collectWorkout();
+ let volume = 0, maxWeight = 0, actualSets = 0;
+
+ entries.forEach((entry, i) => {
+   const sets = entry.sets;
+   const weight = +entry.weight || 0;
+   const reps = +entry.reps || 0;
+   volume += sets * weight * reps;
+   maxWeight = Math.max(maxWeight, weight);
+   actualSets += sets;
+   data[type + i] = entry;
+ });
+
+ saveJSON('wt', data);
+ historyData.unshift({
+   date: new Date().toLocaleString('ar-EG'),
+   type, volume, maxWeight, actualSets
+ });
+ historyData = historyData.slice(0, 500);
+ saveJSON('history', historyData);
+ renderHistory();
+ renderProgress();
+ alert('تم حفظ التمرين ✅');
+}
+
+function renderHistory(){
+ const el = document.getElementById('history');
+ if(!historyData.length){
+   el.textContent = 'مفيش تمرينات محفوظة لسه.';
+   return;
+ }
+ el.textContent = 'آخر التمرينات:\n' + historyData.slice(0,10)
+   .map(x => `${x.date} — Workout ${x.type} — Volume: ${Math.round(+x.volume || 0)} — أعلى وزن: ${+x.maxWeight || 0} kg`)
+   .join('\n');
+}
+
+function renderProgress(){
+ const volumes = historyData.map(x => +x.volume || 0);
+ const weights = historyData.map(x => +x.maxWeight || 0);
+ const total = volumes.reduce((a,b) => a+b, 0);
+ document.getElementById('workoutsCount').textContent = historyData.length;
+ document.getElementById('totalVolume').textContent = Math.round(total);
+ document.getElementById('bestVolume').textContent = Math.round(Math.max(0, ...volumes));
+ document.getElementById('maxWeight').textContent = `${Math.max(0, ...weights)} kg`;
+ document.getElementById('avgVolume').textContent = Math.round(historyData.length ? total/historyData.length : 0);
+ document.getElementById('lastVolume').textContent = Math.round(volumes[0] || 0);
+ document.getElementById('progress').textContent = historyData.length
+   ? 'آخر 10 نتائج:\n' + historyData.slice(0,10).map((x,i) =>
+       `${i+1}. ${x.date} | ${x.type} | Volume ${Math.round(+x.volume || 0)} | Max ${+x.maxWeight || 0} kg`
+     ).join('\n')
+   : 'ابدأ أول تمرينة عشان نبدأ قياس التطور.';
+}
+
+function resetToday(){
+ if(!confirm('مسح بيانات التمرين الحالي؟ السجل المحفوظ لن يتم حذفه.')) return;
+ workouts[type].forEach((_, i) => delete data[type + i]);
+ saveJSON('wt', data);
+ render();
+}
+
+function renameExercise(index){
+ const current = workouts[type][index][0];
+ const name = prompt('اسم التمرين', current);
+ if(!name || !name.trim()) return;
+ workouts[type][index][0] = name.trim();
+ saveJSON('workoutPlan', workouts);
+ render();
+}
+
+function populateLibrary(){
+ const muscle = document.getElementById('muscle');
+ muscle.innerHTML = '<option value="">اختر العضلة</option>' +
+   Object.keys(exerciseLibrary).map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join('');
+ updateExerciseList();
+}
+function updateExerciseList(){
+ const muscle = document.getElementById('muscle').value;
+ const exercise = document.getElementById('exercise');
+ exercise.innerHTML = '<option value="">اختر التمرين</option>' +
+   (exerciseLibrary[muscle] || []).map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join('');
+}
+function addExercise(){
+ const name = document.getElementById('exercise').value;
+ if(!name) return;
+ workouts[type].push([name,3,10]);
+ saveJSON('workoutPlan', workouts);
+ render();
+}
+
+function showTimer(){
+ const min = Math.floor(timerSeconds/60);
+ const sec = String(Math.max(0,timerSeconds%60)).padStart(2,'0');
+ document.getElementById('timer').textContent = `${String(min).padStart(2,'0')}:${sec}`;
+}
+function startTimer(seconds){
+ clearInterval(timerInterval);
+ timerSeconds = Math.max(0, Math.floor(seconds));
+ showTimer();
+ timerInterval = setInterval(() => {
+   timerSeconds--;
+   showTimer();
+   if(timerSeconds <= 0){
+     clearInterval(timerInterval);
+     timerInterval = null;
+     if(navigator.vibrate) navigator.vibrate([200,100,200]);
+     alert('انتهى المؤقت 🔔');
+   }
+ },1000);
+}
+function startCardio(){
+ const minutes = +document.getElementById('cardioMinutes').value || 0;
+ if(minutes <= 0){ alert('اكتب عدد دقائق صحيح.'); return; }
+ startTimer(minutes * 60);
+}
+
+function calculateFood(){
+ const name = document.getElementById('foodName').value.trim().toLowerCase();
+ const grams = (+document.getElementById('foodGrams').value || 0);
+ const key = Object.keys(foods).find(x => name.includes(x));
+ const result = document.getElementById('foodResult');
+ if(!key || grams <= 0){
+   result.textContent = 'الصنف غير موجود أو الجرامات غير صحيحة في القاعدة المبدئية.';
+   return;
+ }
+ const [calories, protein, carbs, fat] = foods[key];
+ const q = grams/100;
+ result.innerHTML = `Calories: <b>${Math.round(calories*q)} kcal</b><br>
+ Protein: <b>${(protein*q).toFixed(1)} g</b> |
+ Carbs: <b>${(carbs*q).toFixed(1)} g</b> |
+ Fat: <b>${(fat*q).toFixed(1)} g</b>`;
+}
+
+document.getElementById('workoutA').addEventListener('click', () => {type='A'; render();});
+document.getElementById('workoutB').addEventListener('click', () => {type='B'; render();});
+document.getElementById('save').addEventListener('click', saveWorkout);
+document.getElementById('reset').addEventListener('click', resetToday);
+document.getElementById('muscle').addEventListener('change', updateExerciseList);
+document.getElementById('addExercise').addEventListener('click', addExercise);
+document.getElementById('startCardio').addEventListener('click', startCardio);
+document.getElementById('calculateFood').addEventListener('click', calculateFood);
+document.getElementById('stopTimer').addEventListener('click', () => {
+ clearInterval(timerInterval);
+ timerInterval = null;
+ timerSeconds = 0;
+ showTimer();
+});
+document.querySelectorAll('[data-seconds]').forEach(button => {
+ button.addEventListener('click', () => startTimer(+button.dataset.seconds));
+});
+
+populateLibrary();
+showTimer();
+render();
+</script>
+</body>
+</html>
